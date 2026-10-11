@@ -1,0 +1,14 @@
+{
+  "name": "solano-heat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An original open-world crime sandbox that runs in the browser, built from scratch with three.js.",
+  "scripts": {
+    "build": "python3 build.py",
+    "lint": "python3 build.py && eslint --no-eslintrc -c .eslintrc.json dist/bundle.js"
+  },
+  "devDependencies": {
+    "eslint": "8.57.0",
+    "three": "0.128.0"
+  }
+}

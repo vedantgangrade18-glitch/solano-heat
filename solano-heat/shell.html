@@ -1,0 +1,269 @@
+<title>Solano Heat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
+<style>
+/* Layout: full-bleed 3D canvas; HUD pinned to the four corners; menus as left-anchored sheets over the live city. */
+:root {
+  --ink: #0e1220; --ink2: #171d30; --ink-a: rgba(14, 18, 32, 0.78); --amber: #ffb547; --teal: #2ee6c9; --coral: #ff5a5f;
+  --paper: #f4f1ea; --mute: #a2a9bc; --line: rgba(244, 241, 234, 0.16);
+  --display: "Bungee", "Arial Black", Impact, sans-serif;
+  --hud: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; overflow: hidden; background: var(--ink); color: var(--paper); font-family: var(--hud); }
+body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+#game, #game canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+button { font-family: var(--hud); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+kbd { font-family: var(--hud); font-weight: 700; font-size: 0.85em; display: inline-block; min-width: 1.6em; padding: 0.05em 0.45em; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 5px; background: var(--ink2); color: var(--paper); text-align: center; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; padding: max(14px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); box-sizing: border-box; }
+#hud.hidden { display: none; }
+.shadow-text { text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 0 12px rgba(0,0,0,0.35); }
+#topRight { position: absolute; top: max(14px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: grid; justify-items: end; gap: 2px; }
+#clock { font-weight: 600; font-size: 17px; letter-spacing: 0.08em; color: var(--paper); opacity: 0.9; font-variant-numeric: tabular-nums; }
+#money { font-weight: 800; font-size: 38px; line-height: 1; color: var(--teal); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; -webkit-text-stroke: 1px rgba(0,0,0,0.35); }
+#stars { display: flex; gap: 3px; margin-top: 4px; }
+#stars svg { width: 24px; height: 24px; fill: rgba(14,18,32,0.55); stroke: rgba(244,241,234,0.45); stroke-width: 1.2; transition: fill 0.15s; }
+#stars svg.on { fill: var(--amber); stroke: #5a3a00; }
+#stars svg.dim { fill: rgba(255,181,71,0.35); stroke: #5a3a00; }
+#stars.flash svg.on { animation: starPop 0.3s ease-in-out 3; }
+@keyframes starPop { 50% { transform: scale(1.25); } }
+
+#phone { position: absolute; top: max(14px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); max-width: min(340px, 70vw); background: var(--ink-a); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; display: grid; gap: 2px; font-size: 17px; line-height: 1.25; opacity: 0; transform: translateY(-12px); transition: opacity 0.25s, transform 0.25s; }
+#phone.show { opacity: 1; transform: none; }
+#phone .who { font-weight: 800; color: var(--amber); letter-spacing: 0.06em; text-transform: uppercase; font-size: 13px; }
+#objective { position: absolute; top: calc(max(14px, env(safe-area-inset-top, 0px)) + 0px); left: 50%; transform: translateX(-50%); max-width: min(560px, 60vw); text-align: center; font-weight: 700; font-size: 19px; opacity: 0; transition: opacity 0.3s; }
+#objective b { color: var(--amber); margin-right: 4px; }
+#objective.show { opacity: 1; }
+#missionTitle { position: absolute; top: 22%; left: 0; right: 0; text-align: center; font-family: var(--display); font-size: clamp(24px, 4.2vw, 46px); color: var(--paper); opacity: 0; text-shadow: 3px 3px 0 var(--ink); }
+#missionTitle.show { animation: mTitle 4s ease forwards; }
+@keyframes mTitle { 0% { opacity: 0; letter-spacing: 0.3em; } 15% { opacity: 1; letter-spacing: 0.04em; } 80% { opacity: 1; } 100% { opacity: 0; } }
+#toast { position: absolute; top: 74px; left: 50%; transform: translateX(-50%) translateY(-6px); background: var(--ink-a); border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; font-weight: 600; font-size: 17px; opacity: 0; transition: opacity 0.2s, transform 0.2s; white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+#toast.show { opacity: 1; transform: translateX(-50%); }
+#timer { position: absolute; top: 112px; left: 50%; transform: translateX(-50%); font-weight: 800; font-size: 40px; font-variant-numeric: tabular-nums; color: var(--paper); opacity: 0; }
+#timer.show { opacity: 1; }
+#timer.low { color: var(--coral); }
+#big { position: absolute; top: 38%; left: 0; right: 0; text-align: center; opacity: 0; transform: scale(0.96); transition: opacity 0.3s, transform 0.3s; padding: 14px 16px 16px; background: linear-gradient(90deg, transparent, rgba(14,18,32,0.72) 20%, rgba(14,18,32,0.72) 80%, transparent); }
+#big.show { opacity: 1; transform: none; }
+#bigTitle { font-family: var(--display); font-size: clamp(34px, 7vw, 76px); line-height: 1; color: var(--amber); text-shadow: 4px 4px 0 #0b5c52; }
+#big.fail #bigTitle { color: var(--coral); text-shadow: 4px 4px 0 #3a0d10; }
+#big.stunt #bigTitle { color: var(--teal); text-shadow: 4px 4px 0 #5a3a00; }
+#bigSub { font-weight: 700; font-size: clamp(16px, 2.4vw, 24px); margin-top: 6px; letter-spacing: 0.04em; }
+#subtitle { position: absolute; bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 34px); left: 50%; transform: translateX(-50%); width: min(720px, calc(100vw - 32px)); text-align: center; font-weight: 600; font-size: 20px; line-height: 1.3; opacity: 0; transition: opacity 0.3s; text-wrap: balance; }
+#subtitle.show { opacity: 1; }
+#prompt { position: absolute; bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 120px); left: 50%; transform: translateX(-50%); font-weight: 700; font-size: 19px; opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
+#prompt.show { opacity: 1; }
+#mmWrap { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); bottom: max(14px, env(safe-area-inset-bottom, 0px)); width: 180px; display: grid; gap: 6px; }
+#minimap { width: 180px; height: 180px; border-radius: 50%; box-shadow: 0 0 0 3px var(--ink), 0 0 0 4px rgba(255,181,71,0.55), 0 6px 18px rgba(0,0,0,0.45); background: #0c3442; }
+.bar { height: 6px; border-radius: 3px; background: rgba(14,18,32,0.7); overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,0.35); }
+.bar i { display: block; height: 100%; width: 100%; transition: width 0.25s; }
+#hpBar i { background: var(--teal); }
+#hpBar.low i { background: var(--coral); }
+#carBar { display: none; }
+#carBar.show { display: block; }
+#carBar i { background: var(--amber); }
+#district { position: absolute; bottom: calc(100% + 8px); left: 0; font-family: var(--display); font-size: 20px; color: var(--paper); white-space: nowrap; opacity: 0; transition: opacity 0.6s; text-shadow: 2px 2px 0 var(--ink); }
+#district.show { opacity: 1; }
+#speedo { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(14px, env(safe-area-inset-bottom, 0px)); text-align: right; opacity: 0; transition: opacity 0.25s; display: grid; justify-items: end; }
+#speedo.show { opacity: 1; }
+#spd { font-weight: 800; font-size: 56px; line-height: 0.9; font-variant-numeric: tabular-nums; }
+#unit { font-weight: 600; font-size: 14px; letter-spacing: 0.2em; color: var(--mute); }
+#radio { margin-top: 8px; display: grid; justify-items: end; font-size: 15px; }
+#radio b { font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--amber); }
+#radio span { color: var(--mute); font-weight: 600; }
+#radio.pop { animation: radioPop 2.4s ease; }
+@keyframes radioPop { 0% { transform: translateY(6px); opacity: 0; } 12% { transform: none; opacity: 1; } }
+#arrest { position: absolute; left: 50%; bottom: 30%; transform: translateX(-50%); width: 220px; display: grid; gap: 4px; justify-items: center; opacity: 0; transition: opacity 0.2s; }
+#arrest.show { opacity: 1; }
+#arrest span { font-family: var(--display); color: var(--coral); font-size: 18px; letter-spacing: 0.1em; text-shadow: 2px 2px 0 var(--ink); }
+#arrest .bar { width: 100%; height: 8px; }
+#arrestFill { background: var(--coral); width: 0; }
+#dmgFlash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(255,40,40,0.55)); }
+#dmgFlash.hit { animation: dmg 0.6s ease-out; }
+@keyframes dmg { 0% { opacity: 1; } 100% { opacity: 0; } }
+#fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.35s; }
+#fade.on { opacity: 1; }
+
+/* ---------- Title ---------- */
+#title { position: fixed; inset: 0; display: grid; align-items: end; padding: max(24px, env(safe-area-inset-top, 0px)) 16px max(24px, env(safe-area-inset-bottom, 0px)); box-sizing: border-box; background: linear-gradient(90deg, rgba(10,13,24,0.9) 0%, rgba(10,13,24,0.62) 42%, rgba(10,13,24,0) 72%), linear-gradient(0deg, rgba(10,13,24,0.7), transparent 45%); overflow-y: auto; }
+.title-inner { max-width: 560px; padding-inline: clamp(0px, 4vw, 48px); display: grid; gap: 18px; }
+.logo { font-family: var(--display); font-size: clamp(56px, 11vw, 132px); line-height: 0.86; margin: 0; color: var(--paper); text-shadow: 1px 1px 0 #0b5c52, 2px 2px 0 #0b5c52, 3px 3px 0 #0b5c52, 4px 4px 0 #0b5c52, 5px 5px 0 #0b5c52, 6px 6px 0 #082a26, 10px 12px 24px rgba(0,0,0,0.45); text-wrap: balance; }
+.logo span { display: block; color: var(--amber); }
+.dateline { font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; font-size: 14px; color: var(--teal); margin: 0; }
+.pitch { font-size: 21px; font-weight: 500; line-height: 1.3; max-width: 34ch; margin: 0; color: var(--paper); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { border: 0; cursor: pointer; font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; padding: 12px 26px; border-radius: 10px; background: var(--amber); color: var(--ink); box-shadow: 0 4px 0 #8a5a10; transition: transform 0.08s, box-shadow 0.08s; }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #8a5a10; }
+.btn.ghost { background: transparent; color: var(--paper); box-shadow: inset 0 0 0 2px var(--line); }
+.btn.ghost:hover { box-shadow: inset 0 0 0 2px var(--paper); }
+.btn.small { font-size: 16px; padding: 8px 16px; }
+.btn.danger { background: var(--coral); box-shadow: 0 4px 0 #7a1f22; color: var(--ink); }
+#saveLine { font-weight: 600; color: var(--mute); font-size: 16px; font-variant-numeric: tabular-nums; min-height: 1em; margin: 0; }
+.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-weight: 600; font-size: 17px; }
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 22px; font-size: 16px; font-weight: 600; background: rgba(14,18,32,0.7); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.controls h3 { grid-column: 1 / -1; margin: 6px 0 2px; font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--amber); }
+.controls div { display: flex; justify-content: space-between; gap: 10px; align-items: center; min-width: 0; }
+.fine { font-size: 13px; color: var(--mute); margin: 0; max-width: 52ch; line-height: 1.4; }
+
+/* ---------- Pause & map ---------- */
+.sheet { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8,10,18,0.7); padding: 16px; box-sizing: border-box; overflow-y: auto; }
+.panel { width: min(520px, 100%); background: var(--ink); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.panel h2 { font-family: var(--display); font-weight: 400; font-size: 34px; margin: 0; color: var(--amber); }
+.opt { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 600; font-size: 18px; }
+.opt input[type=range] { width: 50%; accent-color: var(--teal); }
+.opt input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--teal); }
+#bigmap { position: fixed; inset: 0; background: #081e28; display: grid; grid-template-rows: 1fr auto; }
+#bigmapCanvas { width: 100%; height: 100%; display: block; cursor: crosshair; min-height: 0; }
+.mapbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; justify-content: space-between; padding: 10px 16px max(10px, env(safe-area-inset-bottom, 0px)); background: var(--ink); border-top: 1px solid var(--line); font-weight: 600; font-size: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.legend i { font-style: normal; font-weight: 800; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 2px solid currentColor; margin-right: 4px; font-size: 12px; background: var(--ink); }
+#bootError { position: fixed; inset: auto 16px 16px 16px; background: var(--ink); border: 1px solid var(--coral); color: var(--paper); padding: 14px 16px; border-radius: 10px; font-size: 17px; }
+
+/* ---------- Touch ---------- */
+#touchZone, #touchUI { display: none; }
+body.touch #touchZone { display: block; position: fixed; inset: 0; }
+body.touch #touchUI { display: block; }
+body.touch #hud.hidden ~ #touchUI { display: none; }
+#joy { position: fixed; width: 120px; height: 120px; border-radius: 50%; border: 2px solid rgba(244,241,234,0.35); background: rgba(14,18,32,0.25); opacity: 0; pointer-events: none; }
+#joy.on { opacity: 1; }
+#joyKnob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(244,241,234,0.55); }
+.tbtns { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 120px); display: grid; grid-template-columns: repeat(3, 62px); gap: 10px; }
+.tbtn { width: 62px; height: 62px; border-radius: 50%; border: 2px solid rgba(244,241,234,0.4); background: rgba(14,18,32,0.55); color: var(--paper); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; display: grid; place-items: center; touch-action: none; }
+.tbtn.down { background: rgba(255,181,71,0.85); color: var(--ink); }
+.tbtn.big { border-color: var(--amber); }
+.ttop { position: fixed; top: calc(max(14px, env(safe-area-inset-top, 0px)) + 96px); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
+.ttop .tbtn { width: 48px; height: 48px; font-size: 12px; border-radius: 12px; }
+body.touch .car-only, body.touch .foot-only { display: none; }
+body.touch.in-car .car-only, body.touch:not(.in-car) .foot-only { display: grid; }
+
+@media (max-width: 640px) {
+  #minimap, #mmWrap { width: 132px; } #minimap { height: 132px; }
+  #money { font-size: 30px; } #spd { font-size: 42px; }
+  #objective { top: 110px; font-size: 17px; max-width: calc(100vw - 32px); }
+  #toast { top: 150px; } #timer { top: 182px; }
+  #prompt { bottom: 200px; white-space: normal; text-align: center; width: calc(100vw - 32px); }
+  #subtitle { font-size: 17px; bottom: auto; top: calc(max(14px, env(safe-area-inset-top, 0px)) + 216px); }
+  #phone { max-width: calc(100vw - 32px - 150px); font-size: 15px; }
+  .pitch { font-size: 18px; }
+  #title { background: linear-gradient(0deg, rgba(10,13,24,0.92) 0%, rgba(10,13,24,0.7) 55%, rgba(10,13,24,0.2) 100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+
+<div id="game"></div>
+
+<div id="hud" class="hidden">
+  <div id="topRight" class="shadow-text"><div id="clock">17:20</div><div id="money">$500</div><div id="stars"></div></div>
+  <div id="phone"></div>
+  <div id="objective" class="shadow-text"></div>
+  <div id="missionTitle"></div>
+  <div id="toast"></div>
+  <div id="timer" class="shadow-text"></div>
+  <div id="big"><div id="bigTitle"></div><div id="bigSub"></div></div>
+  <div id="prompt" class="shadow-text"></div>
+  <div id="subtitle" class="shadow-text"></div>
+  <div id="arrest"><span>Arrest</span><div class="bar"><i id="arrestFill"></i></div></div>
+  <div id="mmWrap">
+    <div id="district"></div>
+    <canvas id="minimap" width="180" height="180" aria-label="Minimap"></canvas>
+    <div class="bar" id="hpBar" title="Health"><i id="hpFill"></i></div>
+    <div class="bar" id="carBar" title="Vehicle condition"><i id="carFill"></i></div>
+  </div>
+  <div id="speedo" class="shadow-text"><div id="spd">0</div><div id="unit">KM/H</div><div id="radio"></div></div>
+</div>
+<div id="dmgFlash"></div>
+
+<div id="touchZone"></div>
+<div id="touchUI">
+  <div id="joy"><div id="joyKnob"></div></div>
+  <div class="tbtns">
+    <button class="tbtn foot-only" data-btn="punch">Punch</button>
+    <button class="tbtn foot-only" data-btn="jump">Jump</button>
+    <button class="tbtn foot-only" data-btn="sprint">Run</button>
+    <button class="tbtn car-only" data-btn="radio">Radio</button>
+    <button class="tbtn car-only" data-btn="horn">Horn</button>
+    <button class="tbtn car-only" data-btn="hb">Drift</button>
+    <button class="tbtn big" data-btn="enter" style="grid-column: 3">Car</button>
+  </div>
+  <div class="ttop"><button class="tbtn" data-btn="map">Map</button><button class="tbtn" data-btn="pause">II</button></div>
+</div>
+
+<div id="title" hidden>
+  <div class="title-inner">
+    <p class="dateline">Port Solano · Gulf Coast · pop. 412,000</p>
+    <h1 class="logo">Solano<span>Heat</span></h1>
+    <p class="pitch">Steal a ride, run jobs for Dolores, and lose the cops before they lose patience.</p>
+    <div class="actions">
+      <button class="btn" id="btnPlay">Play</button>
+      <button class="btn ghost" id="btnNew" hidden>New game</button>
+      <button class="btn ghost" id="btnControls">Controls</button>
+    </div>
+    <div class="confirm" id="confirmNew" hidden>Erase your money, jobs and tapes? <button class="btn small danger" id="btnNewYes">Erase and start</button><button class="btn small ghost" id="btnNewNo">Keep</button></div>
+    <p id="saveLine"></p>
+    <div class="controls" id="controlsPanel" hidden>
+      <h3>On foot</h3>
+      <div>Move <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+      <div>Look <span>Mouse (click to lock)</span></div>
+      <div>Run <kbd>Shift</kbd></div>
+      <div>Jump <kbd>Space</kbd></div>
+      <div>Punch <span>Click or <kbd>J</kbd></span></div>
+      <div>Get in or out <kbd>F</kbd></div>
+      <h3>Driving</h3>
+      <div>Gas and brake <span><kbd>W</kbd><kbd>S</kbd></span></div>
+      <div>Steer <span><kbd>A</kbd><kbd>D</kbd></span></div>
+      <div>Handbrake <kbd>Space</kbd></div>
+      <div>Horn <kbd>H</kbd></div>
+      <div>Next station <kbd>Q</kbd></div>
+      <div>Camera distance <kbd>C</kbd></div>
+      <h3>Anywhere</h3>
+      <div>Map <kbd>M</kbd></div>
+      <div>Pause <kbd>Esc</kbd></div>
+      <div>Gamepad <span>Standard layout</span></div>
+    </div>
+    <p class="fine">An original open-world sandbox built from scratch in the browser. Every street, car, person and song is generated in code. Progress saves in this browser.</p>
+  </div>
+</div>
+
+<div id="pause" class="sheet" hidden>
+  <div class="panel">
+    <h2>Paused</h2>
+    <div class="actions"><button class="btn" id="btnResume">Resume</button><button class="btn ghost" id="btnPauseControls">Controls</button></div>
+    <div class="controls" id="pauseControls" hidden>
+      <div>Move <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+      <div>Get in or out <kbd>F</kbd></div>
+      <div>Handbrake / Jump <kbd>Space</kbd></div>
+      <div>Punch <span>Click or <kbd>J</kbd></span></div>
+      <div>Run <kbd>Shift</kbd></div>
+      <div>Next station <kbd>Q</kbd></div>
+      <div>Horn <kbd>H</kbd></div>
+      <div>Map <kbd>M</kbd></div>
+    </div>
+    <label class="opt" for="optShadows">Sun shadows <input type="checkbox" id="optShadows"></label>
+    <label class="opt" for="optMusic">Radio volume <input type="range" id="optMusic" min="0" max="100" value="55"></label>
+    <div class="actions"><button class="btn small ghost" id="btnQuit">Quit to title</button><button class="btn small ghost" id="btnReset">Erase progress</button></div>
+    <div class="confirm" id="confirmReset" hidden>Erase money, jobs and tapes? <button class="btn small danger" id="btnResetYes">Erase</button><button class="btn small ghost" id="btnResetNo">Keep</button></div>
+  </div>
+</div>
+
+<div id="bigmap" hidden>
+  <canvas id="bigmapCanvas" aria-label="City map"></canvas>
+  <div class="mapbar">
+    <div class="legend">
+      <span><i style="color:#ffb547">D</i>Dolores</span><span><i style="color:#ffb547">◆</i>Objective</span><span><i style="color:#2ee6c9">$</i>Fresh Coat</span><span><i style="color:#ff5a5f">+</i>Hospital</span><span><i style="color:#7fb4ff">P</i>Police</span>
+    </div>
+    <span id="mapHint">Click the map to set a waypoint. M closes.</span>
+    <button class="btn small" id="btnMapClose">Close map</button>
+  </div>
+</div>
+<div id="fade"></div>
+<div id="bootError" hidden>Port Solano failed to start: <span></span></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/*__BUNDLE__*/
+</script>
